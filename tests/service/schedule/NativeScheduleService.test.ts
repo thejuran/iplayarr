@@ -1,8 +1,7 @@
 // __tests__/NativeScheduleService.test.ts
+import axios from 'axios';
 import fs from 'fs';
 import path from 'path';
-
-import axios from 'axios';
 
 import configService from '../../../src/service/configService';
 import iplayerDetailsService from '../../../src/service/iplayerDetailsService';
@@ -199,7 +198,27 @@ describe('NativeScheduleService', () => {
             const pids = await NativeScheduleService.getPidsFromSchedulePage('bad-url');
 
             expect(pids).toEqual([]);
-            expect(logSpy).toHaveBeenCalled();
+            expect(logSpy).toHaveBeenCalledWith(expect.stringContaining('Fetch failed'));
+        });
+
+        it('should log 404 responses at debug level, not error', async () => {
+            const notFound = Object.assign(new Error('Request failed with status code 404'), {
+                isAxiosError: true,
+                response: { status: 404 },
+            });
+            (axios.get as jest.Mock).mockRejectedValue(notFound);
+            const isAxiosErrorSpy = jest.spyOn(axios, 'isAxiosError').mockReturnValue(true);
+
+            const errorSpy = jest.spyOn(loggingService, 'error').mockImplementation(jest.fn());
+            const debugSpy = jest.spyOn(loggingService, 'debug').mockImplementation(jest.fn());
+
+            const pids = await NativeScheduleService.getPidsFromSchedulePage('https://www.bbc.co.uk/schedules/p00fzl67/2025/04/27');
+
+            expect(pids).toEqual([]);
+            expect(errorSpy).not.toHaveBeenCalled();
+            expect(debugSpy).toHaveBeenCalledWith(expect.stringContaining('not published'));
+
+            isAxiosErrorSpy.mockRestore();
         });
     });
 });

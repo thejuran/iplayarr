@@ -156,8 +156,13 @@ class NativeScheduleService implements AbstractScheduleService {
             }
 
             return pids;
-        } catch {
-            loggingService.error(`Error fetching schedule page: ${url}`);
+        } catch (error) {
+            if (axios.isAxiosError(error) && error.response?.status === 404) {
+                loggingService.debug(`Schedule page not published (404): ${url}`);
+            } else {
+                const message = error instanceof Error ? error.message : String(error);
+                loggingService.error(`Error fetching schedule page: ${url} - ${message}`);
+            }
             return [];
         }
     }
